@@ -26,7 +26,7 @@ class optDataset(Dataset):
         objs (np.ndarray): Optimal objective values
     """
 
-    def __init__(self, model, feats, costs):
+    def __init__(self, model, feats, costs, wind=None):
         """
         A method to create a optDataset from optModel
 
@@ -36,13 +36,42 @@ class optDataset(Dataset):
             costs (np.ndarray): costs of objective function
         """
         if not isinstance(model, optModel):
-            raise TypeError("arg model is not an optModel")
-        self.model = model
+            if wind is not None:
+                self.params = wind
+                self.model_type = model
+            else:
+                raise TypeError("arg model is not an optModel")
+        else:
+            self.model = model
+        
         # data
         self.feats = feats
         self.costs = costs
         # find optimal solutions
-        self.sols, self.objs = self._getSols()
+        if wind is not None:
+            self.sols, self.objs = self._getSolsParams()
+        else:
+            self.sols, self.objs = self._getSols()
+
+    def _getSolsParams(self):
+        """
+        A method to get optimal solutions for all cost vectors
+        """
+        sols = []
+        objs = []
+        print("Optimizing for optDataset...")
+        time.sleep(1)
+        for ix, c in enumerate(tqdm(self.costs)):
+            try:
+                self.model = self.model_type(self.params[ix])
+                sol, obj = self._solve(c)
+            except:
+                raise ValueError(
+                    "For optModel, the method 'solve' should return solution vector and objective value."
+                )
+            sols.append(sol)
+            objs.append([obj])
+        return np.array(sols), np.array(objs)
 
     def _getSols(self):
         """
